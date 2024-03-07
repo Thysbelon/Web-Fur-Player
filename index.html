@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<head>
+<meta charset=utf-8>
+<title>Web-Fur-Player Demo</title>
+<meta name=color-scheme content="dark light">
+<meta name=viewport content=width=device-width,initial-scale=1.0>
+<!--<script src=sox/sox.js></script>-->
+<script src="coi-serviceworker.min.js"></script>
+<script src=furnace.js></script> <!-- remember to set the right script -->
+</head>
+<body>
+<label for="song-select-file">Upload a song:</label>
+<input type=file id="song-select-file" />
+<button>Run</button>
+<script type="text/javascript">
+async function myClick() {
+	var fileInput=document.getElementById("song-select-file")
+	var furArrayBuf=await fileInput.files[0].arrayBuffer()
+	const module = {
+		arguments: ["-output", "output.wav", "-loops", "0", "-loglevel", "trace", "input.fur"],
+		preRun: () => {
+			module.FS.writeFile("input.fur", new Uint8Array(furArrayBuf));
+			module.FS.mkdir("/home/web_user/.config")
+			module.FS.mkdir("/home/web_user/.config/furnace")
+			module.FS.chown('/home/web_user/.config', 0777)
+			module.FS.chown('/home/web_user/.config/furnace', 0777)
+		},
+		postRun: () => {
+			let output = module.FS.readFile("output.wav", {
+				encoding: "binary",
+			});
+			//let output2 = module.FS.readFile("info.txt");
+			let output3 = module.FS.readFile("/home/web_user/.config/furnace/furnace.log");
+			download(new File([output], fileInput.files[0].name+"-output.wav"))
+			//download(new File([output2], fileInput.files[0].name+"-info.txt"))
+			download(new File([output3], fileInput.files[0].name+"-log.txt"))
+		},
+	};
+	//const start=performance.now()
+	/*await*/ WebFurPlayer(module);
+	//const end=performance.now()
+	//console.log("performance: "+(end-start))
+}
+document.querySelector("button").addEventListener("click", myClick)
+
+function download(file) { // to do: replace the file argument with blob and name?
+	const link = document.createElement('a')
+	const url = URL.createObjectURL(file)
+	
+	link.href = url
+	link.download = file.name
+	document.body.appendChild(link)
+	link.click()
+	
+	document.body.removeChild(link)
+	window.URL.revokeObjectURL(url)
+}
+</script>
